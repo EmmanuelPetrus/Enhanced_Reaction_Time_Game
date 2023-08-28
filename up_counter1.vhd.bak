@@ -1,0 +1,69 @@
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
+entity up_counter1 is
+port( rst, clk_fpga : in std_logic;
+		hex0, hex1 : out std_logic_vector(6 downto 0));
+end entity up_counter1;
+
+architecture count of up_counter1 is
+component seg is
+port(bcd : in std_logic_vector(3 downto 0);
+	 seven : out std_logic_vector(6 downto 0));
+end component seg;
+
+signal s_count, s_count1 : std_logic_vector(3 downto 0);
+signal s_seven, s_seven1 : std_logic_vector(6 downto 0);
+signal seed : std_logic_vector(3 downto 0) := "1111";
+signal s_clk : std_logic;
+begin
+	------------ Select clock (button or internal clock) --------------
+	s_clk <= clk_fpga;
+	------------ Port maps to connect the components ------------------
+	conv0: seg port map(bcd => std_logic_vector(s_count), seven => s_seven);
+	conv1: seg port map(bcd => std_logic_vector(s_count1), seven => s_seven1);
+	
+	------------ Process for the counting sequences -------------------
+	process(s_clk)
+	variable delay : integer range 0 to 100e6 := 0;
+	variable update_count : std_logic := '0';
+	variable new_bit : std_logic;
+	begin
+		if rising_edge(s_clk) then
+			if delay >= 50e6 then
+				delay := 0;
+				update_count := '1';
+			else
+				delay := delay + 1;
+				update_count := '0';
+			end if;
+		end if;
+		
+		if rst = '0' then 
+			s_count <= (others => '0');
+			s_count1 <= (others => '0');
+		elsif rising_edge(s_clk) then
+			if update_count = '1' then
+				if s_count = "1001" then
+					s_count <= (others=>'0');
+					if s_count1 = "1001" then
+						s_count1 <= (others=>'0');
+					else
+						new_bit := seed(3) XOR seed(2); -- XOR feedback
+						s_count1 <= seed;
+						seed <= new_bit & seed(3 downto 1);
+					end if;
+				else
+					new_bit := seed(3) XOR seed(2); -- XOR feedback
+					s_count <= seed;
+					seed <= new_bit & seed(3 downto 1);
+				end if;
+			end if;
+		end if;
+	end process;
+	
+	------------ Output to the LEDs and the HEX displays ----------------
+	hex0 <= s_seven;
+	hex1 <= s_seven1;
+end architecture count;

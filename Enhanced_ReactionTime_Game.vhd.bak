@@ -1,0 +1,369 @@
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
+entity Enhanced_ReactionTime_Game is
+	port (clk_fpga, rst  				  : in std_logic;
+			SW        				      : in std_logic_vector(9 downto 0);
+			LEDR 		 	    		  : out std_logic_vector(9 downto 0) := "0000000000";
+			HEX0,HEX1,HEX2,HEX3,HEX4,HEX5 : out std_logic_vector(6 downto 0) := "1111111"
+			);	
+end entity Enhanced_ReactionTime_Game;
+
+
+architecture Behaviour of Enhanced_ReactionTime_Game is
+
+	component Display is
+			port (input 	: in std_logic_vector(3 downto 0);
+					segment  : out std_logic_vector(6 downto 0)
+					);
+	end component Display;
+	
+	
+	component up_counter1 is
+		port	(rst, clk_fpga : in std_logic;
+				 random_out    : out std_logic_vector(3 downto 0)
+				);
+	end component up_counter1;
+	
+
+	type fsm_states is (Easy, Medium, Hard,Single_Player,Multi_Player);
+	
+	signal State 	 		  : fsm_states;
+	signal s_clk 	 	      : std_logic;
+	signal s_count, s_count1,s_count2,s_count3,s_count4  : std_logic_vector(3 downto 0);
+	signal segment0, segment1,segment2,segment3,segment4 : std_logic_vector(6 downto 0);
+	signal random_number,random_number1,random_number2	  : std_logic_vector(3 downto 0);
+	signal random_int ,random_int1,random_int2       : integer;
+	signal compare_SW ,compare_SW1, compare_SW2      : std_logic;
+	signal in_operation       : std_logic;
+	signal play_mode 		  : fsm_states;
+	constant state_duration   : integer := 2;
+	signal score              : std_logic_vector(6 downto 0);
+	
+begin	
+	
+	random_int <= to_integer(unsigned(random_number));
+	random_int1 <= to_integer(unsigned(random_number1));
+	random_int2 <= to_integer(unsigned(random_number2));
+	score <= std_logic_vector(to_unsigned((to_integer(unsigned(s_count1)) * 10) + to_integer(unsigned(s_count)), score'length));
+	s_clk <= clk_fpga;
+	
+	disp0   : Display 				  			port map (input => s_count, segment => segment0);
+	disp1   : Display 				  			port map (input => s_count1, segment => segment1);
+	disp2   : Display 				  			port map (input => s_count2, segment => segment2);
+	disp3   : Display 				  			port map (input => s_count3, segment => segment3);
+	disp4   : Display 				  			port map (input => s_count4, segment => segment4);
+	counter : work.up_counter1             port map (rst => rst, clk_fpga => clk_fpga, random_out => random_number);
+	
+	process(s_clk,rst)
+		variable delay        : integer range 0 to 100e6 := 0;
+		variable store_number,store_number1,store_number2 : integer range 0 to 15;
+		variable update_count : integer range 0 to 10;
+		variable start_op     : std_logic;
+		variable player_1 ,player_2    : std_logic_vector (4 downto 0);
+
+	begin
+		if (rst='0') then
+			State <= Easy;
+			
+		elsif rising_edge(s_clk) then 
+			if (delay >= 50e6) then
+				update_count := update_count + 1;
+				start_op := '1';
+				delay := 0;
+			else
+				delay := delay + 1;
+				start_op := '0';
+			end if;
+		
+			if (SW(0) = '0') then
+				play_mode <= Single_Player;
+			
+
+				if (start_op = '1') then
+					if (score <= "0001010") then
+						if (in_operation = '0') then
+							State <= Easy;
+							store_number := random_int;
+							LEDR(store_number) <= '1';
+							compare_SW <= SW(store_number);
+							update_count := 0;
+							in_operation <= '1';
+							
+						else
+							if (update_count = 4) then
+								in_operation <= '0';
+								LEDR(store_number) <= '0';
+								update_count := 0;
+								if (SW(store_number) /= compare_SW) then
+									if (s_count = "1001") then
+										s_count <= (others=>'0');
+										s_count1 <= std_logic_vector(unsigned(s_count1) + 1);
+									else
+										s_count <= std_logic_vector(unsigned(s_count) + 1);
+									end if;	
+								else
+									if (s_count > "0000") then
+										s_count <= std_logic_vector(unsigned(s_count) - 1);
+									elsif (s_count1 > "0000") then
+										s_count <= "1001";
+										s_count1 <= std_logic_vector(unsigned(s_count1) - 1);
+									end if;
+								end if;
+							end if;
+						end if;
+					
+					
+					elsif (score > "0001010") and (score < "0101000") then
+						if (in_operation = '0') then
+							State <= Medium;
+							store_number := random_int;
+							LEDR(store_number) <= '1';
+							compare_SW <= SW(store_number);
+							update_count := 0;
+							in_operation <= '1';
+						else	
+							if (update_count = 2) then
+								in_operation <= '0';
+								LEDR(store_number) <= '0';
+								update_count := 0;
+								if (SW(store_number) /= compare_SW) then
+									if (s_count = "1001") then
+										s_count <= (others=>'0');
+										s_count1 <= std_logic_vector(unsigned(s_count1) + 1);
+									else
+										s_count <= std_logic_vector(unsigned(s_count) + 1);
+									end if;
+								else
+									if (s_count > "0000") then
+										s_count <= std_logic_vector(unsigned(s_count) - 1);
+									elsif (s_count1 > "0000") then
+										s_count <= "1001";
+										s_count1 <= std_logic_vector(unsigned(s_count1) - 1);
+									end if;
+								end if;
+							end if;
+						end if;
+						
+						
+					elsif (score > "0101000") then
+						if (in_operation = '0') then
+							State <= Hard;
+							store_number := random_int;
+							LEDR(store_number) <= '1';
+							compare_SW <= SW(store_number);
+							update_count := 0;
+							in_operation <= '1';
+							
+						else
+							if (update_count = 1) then
+								in_operation <= '0';
+								LEDR(store_number) <= '0';
+								update_count := 0;
+								if (SW(store_number) /= compare_SW) then
+									if (s_count = "1001") then
+										if (s_count1 /= "1001") then
+											s_count <= (others=>'0');
+											s_count1 <= std_logic_vector(unsigned(s_count1) + 1);
+										end if;
+									else
+										s_count <= std_logic_vector(unsigned(s_count) + 1);
+									end if;
+								else
+									if (s_count > "0000") then
+										s_count <= std_logic_vector(unsigned(s_count) - 1);
+									elsif (s_count1 > "0000") then
+										s_count <= "1001";
+										s_count1 <= std_logic_vector(unsigned(s_count1) - 1);
+									end if;
+								end if;
+							end if;		
+						end if;
+					end if;
+				end if;
+
+			else
+				player_1 <= LED(9 downto 5);
+				player_2 <= LED(4 downto 0);	
+
+				play_mode <= Multi_Player;
+				s_count2  <= "1111";
+
+				if (start_op = '1') then
+					if (score <= "0001010") then
+						if (in_operation = '0') then
+							State <= Easy;
+							store_number1 := random_int1;
+							store_number2 := random_int2;
+							LEDR(store_number1) <= '1';
+							LEDR(store_number2) <= '1';
+							compare_SW1 <= SW(store_number1);
+							compare_SW2 <= SW(store_number2);
+							update_count := 0;
+							in_operation <= '1';
+							
+						else
+							if (update_count = 4) then
+								in_operation <= '0';
+								LEDR(store_number1) <= '0';
+								LEDR(store_number2) <= '0';
+								update_count := 0;
+
+								if (SW(store_number1) /= compare_SW1) then
+									if (s_count = "1001") then
+										s_count <= (others=>'0');
+										s_count1 <= std_logic_vector(unsigned(s_count1) + 1);
+									else
+										s_count <= std_logic_vector(unsigned(s_count) + 1);
+									end if;	
+								else
+									if (s_count > "0000") then
+										s_count <= std_logic_vector(unsigned(s_count) - 1);
+									elsif (s_count1 > "0000") then
+										s_count <= "1001";
+										s_count1 <= std_logic_vector(unsigned(s_count1) - 1);
+									end if;
+								end if;
+
+
+
+								if (SW(store_number1) /= compare_SW1) then
+									if (s_count3 = "1001") then
+										s_count3 <= (others=>'0');
+										s_count4 <= std_logic_vector(unsigned(s_count4) + 1);
+									else
+										s_count3 <= std_logic_vector(unsigned(s_count3) + 1);
+									end if;	
+								else
+									if (s_count3 > "0000") then
+										s_count3 <= std_logic_vector(unsigned(s_count3) - 1);
+									elsif (s_count4 > "0000") then
+										s_count3 <= "1001";
+										s_count4 <= std_logic_vector(unsigned(s_count4) - 1);
+									end if;
+								end if;
+
+
+							end if;
+						end if;
+					
+					
+					elsif (score > "0001010") and (score < "0101000") then
+						if (in_operation = '0') then
+							State <= Medium;
+							store_number := random_int;
+							LEDR(store_number) <= '1';
+							compare_SW <= SW(store_number);
+							update_count := 0;
+							in_operation <= '1';
+						else	
+							if (update_count = 2) then
+								in_operation <= '0';
+								LEDR(store_number) <= '0';
+								update_count := 0;
+								if (SW(store_number) /= compare_SW) then
+									if (s_count = "1001") then
+										s_count <= (others=>'0');
+										s_count1 <= std_logic_vector(unsigned(s_count1) + 1);
+									else
+										s_count <= std_logic_vector(unsigned(s_count) + 1);
+									end if;
+								else
+									if (s_count > "0000") then
+										s_count <= std_logic_vector(unsigned(s_count) - 1);
+									elsif (s_count1 > "0000") then
+										s_count <= "1001";
+										s_count1 <= std_logic_vector(unsigned(s_count1) - 1);
+									end if;
+								end if;
+							end if;
+						end if;
+						
+						
+					elsif (score > "0101000") then
+						if (in_operation = '0') then
+							State <= Hard;
+							store_number := random_int;
+							LEDR(store_number) <= '1';
+							compare_SW <= SW(store_number);
+							update_count := 0;
+							in_operation <= '1';
+							
+						else
+							if (update_count = 1) then
+								in_operation <= '0';
+								LEDR(store_number) <= '0';
+								update_count := 0;
+								if (SW(store_number) /= compare_SW) then
+									if (s_count = "1001") then
+										if (s_count1 /= "1001") then
+											s_count <= (others=>'0');
+											s_count1 <= std_logic_vector(unsigned(s_count1) + 1);
+										end if;
+									else
+										s_count <= std_logic_vector(unsigned(s_count) + 1);
+									end if;
+								else
+									if (s_count > "0000") then
+										s_count <= std_logic_vector(unsigned(s_count) - 1);
+									elsif (s_count1 > "0000") then
+										s_count <= "1001";
+										s_count1 <= std_logic_vector(unsigned(s_count1) - 1);
+									end if;
+								end if;
+							end if;		
+						end if;
+					end if;
+				end if;
+
+
+
+
+
+
+			end if ;
+		end if;
+	end process;
+		
+
+HEX0 <= segment0;
+HEX1 <= segment1;
+HEX2 <= segment2;
+HEX3 <= segment3;
+HEX4 <= segment4;
+
+end architecture Behaviour;
+
+
+
+
+--Segment Displays
+
+library ieee;
+use ieee.std_logic_1164.all;
+
+entity Display is
+	port (input 	: in std_logic_vector(3 downto 0);
+			segment  : out std_logic_vector(6 downto 0)
+		  );
+end entity Display;
+
+
+architecture display_behaviour of Display is
+begin
+	WITH input SELECT
+	segment <= "1000000" when "0000", --0
+				  "1111001" when "0001", --1
+				  "0100101" when "0010", --2
+				  "0110000" when "0011", --3
+				  "0011001" when "0100", --4
+				  "0010010" when "0101", --5
+				  "0000010" when "0110", --6
+				  "0111000" when "0111", --7
+				  "0000000" when "1000", --8
+				  "0011000" when "1001", --9
+				  "0111111" when "1111", --dash
+				  "XXXXXXX" when OTHERS; --invalid input
+end architecture display_behaviour;
+
