@@ -117,7 +117,7 @@ To experience the thrill of the Enhanced Reaction Time Game on your DE10-Lite bo
 
 ## Acknowledgments
 
-We extend our gratitude to the open-source community for their contributions and support in creating this project.
+We extend our gratitude to Dr. Olawale Akinwale, the instructor for EEE308 (Digital System Analysis and Design) for his guidance and dedication.
 
 ## License
 
