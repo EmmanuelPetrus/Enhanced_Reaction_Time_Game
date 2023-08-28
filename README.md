@@ -73,7 +73,7 @@ Celebrate your success with visual cues. Swift and accurate responses trigger fl
 
 Challenge a friend to a reaction time showdown! Multiplayer mode lets each player use their own set of LEDs and switches. The segment display acts as a scoreboard, showcasing reaction times and declaring a winner.
 
-## High-Score Tracking
+## Score Tracking
 
 Compete against yourself and others by aiming for high scores. The game keeps track of top scores, motivating you to beat your previous records and achieve new milestones.
 
